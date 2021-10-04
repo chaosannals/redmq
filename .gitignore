@@ -1,0 +1,6 @@
+/.*/
+/build/
+/dist/
+/runtime/
+__pycache__
+/.env
