@@ -4,13 +4,13 @@ import sys
 from multiprocessing import freeze_support
 from loguru import logger
 from dotenv import load_dotenv
-from redmq import contractor
 from redmq.server import RedMQServer
 from redmq.contractor import RedMQContractor
 
 
 def main():
     '''
+    主函数。
     '''
 
     try:

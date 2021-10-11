@@ -7,10 +7,12 @@ from .action import RedMQAction
 
 class RedMQServer:
     '''
+    HTTP 服务端
     '''
 
     def __init__(self, loop: BaseEventLoop):
         '''
+        初始化。
         '''
         
         self.app = web.Application()
@@ -19,27 +21,18 @@ class RedMQServer:
         self.port = os.getenv('REDMQ_PORT', 33000)
         self.loop = loop
 
-    async def serve(self):
+    def __enter__(self):
         '''
+        资源初始化。
         '''
 
         self.app.add_routes([
             web.get('/', self.action.index),
-            web.post('/attach', self.action.attach),
-            web.post('/detach', self.action.detach),
+            web.post('/work/info', self.action.info),
             web.post('/work/push', self.action.push),
+            web.post('/work/peek', self.action.peek),
             web.post('/work/pull', self.action.pull),
         ])
-        logger.info(f'redmq start: http://{self.host}:{self.port}')
-        self.server = await self.loop.create_server(
-            self.app.make_handler(),
-            host=self.host,
-            port=self.port
-        )
-
-    def __enter__(self):
-        '''
-        '''
 
         return self
 
@@ -53,3 +46,14 @@ class RedMQServer:
         if self.action is not None:
             self.loop.run_until_complete(self.action.deinit())
         
+    async def serve(self):
+        '''
+        启动服务。
+        '''
+
+        logger.info(f'redmq start: http://{self.host}:{self.port}')
+        self.server = await self.loop.create_server(
+            self.app.make_handler(),
+            host=self.host,
+            port=self.port
+        )

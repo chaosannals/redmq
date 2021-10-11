@@ -9,13 +9,14 @@ class DemoWork(RedMQWorker):
         '''
         初始化
         '''
+        super().__init__(__name__)
 
     def on_work(self, data):
         '''
         任务执行
         '''
 
-    def on_fail(self, data):
+    def on_fail(self, data, e):
         '''
         失败处理
         '''

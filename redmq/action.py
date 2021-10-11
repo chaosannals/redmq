@@ -1,59 +1,81 @@
-import os
 from loguru import logger
-from aioredis import Redis, ConnectionPool
-from aiohttp.web import  Response, json_response, Request
+from aiohttp.web import json_response, Request
+from .queue import RedMQ
+
 
 class RedMQAction:
     '''
+    HTTP 请求操作。
     '''
 
     def __init__(self):
         '''
+        初始化。
         '''
-        
-        host = os.getenv('REDMQ_REDIS_HOST', '127.0.0.1')
-        port = os.getenv('REDMQ_REDIS_PORT', 6379)
-        self.pool = ConnectionPool.from_url(
-            url = f'redis://{host}:{port}',
-            decode_responses=True
-        )
-        self.redis = Redis(connection_pool=self.pool)
-        
+
+        self.queue = RedMQ()
 
     async def deinit(self):
         '''
+        析构。
         '''
-        
-        await self.pool.disconnect()
-        
 
     async def index(self, request: Request):
         '''
+        提示页
         '''
-        
 
-        return Response()
+        return json_response({
+            'code': 0,
+        })
 
-    async def push(self, request: Request):
+    async def info(self, request: Request):
         '''
+        获取信息。
         '''
 
         data = await request.json()
 
-        logger.debug(data)
+        if 'queue' not in data:
+            return json_response({
+                'code': -1,
+                'message': '请指定队列名',
+            }, status=400)
 
-        await self.redis.xadd(
-            name=data['queue'] if 'queue' in data else 'default',
-            fields=data['data']
+        info = await self.queue.info(data['queue'])
+
+        return json_response({
+            'code': 0,
+            'info': info,
+        })
+
+    async def push(self, request: Request):
+        '''
+        插入队列。
+        '''
+
+        data = await request.json()
+
+        if 'queue' not in data:
+            return json_response({
+                'code': -1,
+                'message': '请指定队列。'
+            })
+
+        result = await self.queue.push(
+            data['queue'],
+            data['data']
         )
 
         return json_response({
             'code': 0,
+            'result': result,
             'message': 'Ok'
         })
 
     async def pull(self, request: Request):
         '''
+        消费队列。
         '''
 
         data = await request.json()
@@ -63,22 +85,22 @@ class RedMQAction:
             'message': 'Ok'
         })
 
-    async def attach(self, request):
+    async def peek(self, request:Request):
         '''
-        '''
-
-        data = await request.json()
-        return json_response({
-            'code': 0,
-            'message': 'Ok'
-        })
-
-    async def detach(self, request):
-        '''
+        窥探队列。
         '''
 
         data = await request.json()
+
+        if 'queue' not in data:
+            return json_response({
+                'code': -1,
+                'message': '请指定队列。'
+            })
+
+        info = await self.queue.peek(data['queue'])
+
         return json_response({
             'code': 0,
-            'message': 'Ok'
+            'data': info,
         })
