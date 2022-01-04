@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import datetime
 from loguru import logger
 from aioredis import Redis, ConnectionPool
 
@@ -34,6 +35,13 @@ class RedMQ:
             g['consumers'] = await self.redis.xinfo_consumers(name, gn)
         return r
 
+    async def count(self, name):
+        '''
+        查询长度。
+        '''
+
+        return await self.redis.xlen(name)
+
     async def push(self, name, data):
         '''
         向指定队列插入任务。
@@ -42,13 +50,14 @@ class RedMQ:
         return await self.redis.xadd(
             name=name,
             fields={
-                'retry_count': 0,
+                'create_at':  datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 'data': json.dumps(data, ensure_ascii=False)
             }
         )
 
     async def pull(self, name, ids):
         '''
+        拉取指定队列信息。
         '''
 
     async def peek(self, name, count=1):
@@ -60,15 +69,36 @@ class RedMQ:
             name: '0-0',
         }, count=count, block=100)
 
+    async def remove(self, queue, *ids):
+        '''
+
+        '''
+
+        return await self.redis.xdel(queue, *ids)
+
+    async def find(self, name, sid):
+        '''
+        
+        '''
+        return await self.redis.xrange(name, sid, count=1)
+
+    async def range(self, name, min_id='-', max_id='+', count=None):
+        '''
+
+        '''
+
+        return await self.redis.xrange(name, min_id, max_id, count)
+
     async def save(self, rid, info):
         '''
         '''
 
-    async def group_create(self, queue, name, sid='0'):
+    async def group_create(self, queue, name, sid='0', mkstream=False):
         '''
+        创建消息组。
         '''
 
-        return await self.redis.xgroup_create(queue, name, sid)
+        return await self.redis.xgroup_create(queue, name, sid, mkstream)
 
     async def group_destroy(self, queue, name):
         '''
@@ -92,7 +122,7 @@ class RedMQ:
             'pendings': p,
         }
 
-    async def group_pull(self, queue, name, consumer):
+    async def group_pull(self, queue, name, consumer, mid='>', count=1):
         '''
         读取任务。
         '''
@@ -100,17 +130,28 @@ class RedMQ:
         return await self.redis.xreadgroup(
             groupname=name,
             consumername=consumer,
-            streams={queue: '>'},
-            count=1,
+            streams={queue: mid},
+            count=count,
             block=100
+        )
+
+    async def group_pend(self, queue, name, consumer, min_id='-', max_id='+', count=100):
+        '''
+        读取 pandings
+        '''
+
+        return await self.redis.xpending_range(
+            name=queue,
+            groupname=name,
+            min=min_id,
+            max=max_id,
+            count=count,
+            consumername=consumer
         )
 
     async def group_ack(self, queue, name, *ids):
         '''
+        提交任务。
         '''
 
-        return await self.redis.xack(
-            name=queue,
-            groupname=name,
-            ids=ids
-        )
+        return await self.redis.xack(queue, name, *ids)
