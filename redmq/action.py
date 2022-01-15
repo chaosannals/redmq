@@ -29,6 +29,18 @@ class RedMQAction:
             'code': 0,
         })
 
+    async def login(self, request: Request):
+        '''
+        
+        '''
+
+        data = await request.json()
+        
+
+        return json_response({
+            'code': 1,
+        })
+
     async def info(self, request: Request):
         '''
         获取信息。

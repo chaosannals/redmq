@@ -1,9 +1,10 @@
 import os
+from urllib import response
 from loguru import logger
 from asyncio import BaseEventLoop
 from aiohttp import web
 from .action import RedMQAction
-
+from .account import init, quit
 
 class RedMQServer:
     '''
@@ -15,7 +16,9 @@ class RedMQServer:
         初始化。
         '''
         
-        self.app = web.Application()
+        self.app = web.Application(middlewares=[
+            self.authorize
+        ])
         self.action = RedMQAction()
         self.host = os.getenv('REDMQ_HOST', '0.0.0.0')
         self.port = os.getenv('REDMQ_PORT', 33000)
@@ -26,8 +29,10 @@ class RedMQServer:
         资源初始化。
         '''
 
+        self.loop.run_until_complete(init())
         self.app.add_routes([
             web.get('/', self.action.index),
+            web.post('/login', self.action.login),
             web.post('/work/info', self.action.info),
             web.post('/work/push', self.action.push),
             web.post('/work/peek', self.action.peek),
@@ -41,10 +46,19 @@ class RedMQServer:
         回收资源。
         '''
 
+        self.loop.run_until_complete(quit())
         if self.server is not None:
             self.server.close()
         if self.action is not None:
             self.loop.run_until_complete(self.action.deinit())
+
+    @web.middleware
+    async def authorize(self, request, handler):
+        '''
+        '''
+
+        response = await handler(request)
+        return response
         
     async def serve(self):
         '''
