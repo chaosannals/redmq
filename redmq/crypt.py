@@ -2,6 +2,7 @@ import os
 import json
 from io import BytesIO
 from base64 import b64encode, b64decode
+from random import randint
 from cryptography.hazmat.primitives.hmac import HMAC
 from cryptography.hazmat.primitives.hashes import SHA256
 from cryptography.hazmat.primitives.padding import PKCS7
@@ -9,6 +10,8 @@ from cryptography.hazmat.primitives.ciphers import Cipher
 from cryptography.hazmat.primitives.ciphers.algorithms import AES
 from cryptography.hazmat.primitives.ciphers.modes import CBC
 
+RANDOM_TEXT_CHARSET = '0123456789qwertyuiopasdfghjklzxcvbnm'
+RANDOM_TEXT_CHARSET_MAXID = len(RANDOM_TEXT_CHARSET) - 1
 
 def hmac_sha256(key: bytes, data: bytes) -> bytes:
     '''
@@ -78,6 +81,18 @@ def decrypt256(key: bytes, data: str):
         if hmc != nhmc:
             raise Exception(f'hmac error {nhmc} {hmc}')
         return json.loads(rd)
+
+def random_text(length=32):
+    '''
+    
+    '''
+
+    r = []
+    for _ in range(length):
+        i = randint(0, RANDOM_TEXT_CHARSET_MAXID)
+        c = RANDOM_TEXT_CHARSET[i]
+        r.append(c)
+    return ''.join(r)
 
 
 if '__main__' == __name__:

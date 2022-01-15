@@ -1,10 +1,11 @@
 import os
-from urllib import response
 from loguru import logger
 from asyncio import BaseEventLoop
 from aiohttp import web
+
+from redmq.crypt import decrypt256
 from .action import RedMQAction
-from .account import init, quit
+from .account import Account, init, quit
 
 class RedMQServer:
     '''
@@ -53,10 +54,31 @@ class RedMQServer:
             self.loop.run_until_complete(self.action.deinit())
 
     @web.middleware
-    async def authorize(self, request, handler):
+    async def authorize(self, request: web.Request, handler):
         '''
         '''
 
+        urlpath = request.url.path
+
+        if not urlpath.startswith('/login'):
+            data = await request.json()
+            app = data.get('key')
+            if app is None:
+                return web.json_response({
+                    'code': -1,
+                    'message': '认证参数无效',
+                }, status=400)
+            a = await Account.get_or_none(key=app)
+            if a is None:
+                return web.json_response({
+                    'code': -1,
+                    'message': '无效账号',
+                }, status=400)
+            token = bytes(a.token, encoding='utf8')
+            request['data'] = decrypt256(token, data.get('data'))
+            request['token'] = token
+            logger.trace('auth {}  path: {}', app, urlpath)
+            
         response = await handler(request)
         return response
         
