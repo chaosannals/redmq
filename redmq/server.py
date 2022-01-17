@@ -1,11 +1,12 @@
+from datetime import datetime
 import os
 from loguru import logger
 from asyncio import BaseEventLoop
 from aiohttp import web
-
-from redmq.crypt import decrypt256
+from .crypt import decrypt256
 from .action import RedMQAction
 from .account import Account, init, quit
+
 
 class RedMQServer:
     '''
@@ -16,7 +17,7 @@ class RedMQServer:
         '''
         初始化。
         '''
-        
+
         self.app = web.Application(middlewares=[
             self.authorize
         ])
@@ -56,6 +57,7 @@ class RedMQServer:
     @web.middleware
     async def authorize(self, request: web.Request, handler):
         '''
+        授权判定中间件
         '''
 
         urlpath = request.url.path
@@ -74,14 +76,20 @@ class RedMQServer:
                     'code': -1,
                     'message': '无效账号',
                 }, status=400)
+            now = datetime.now(tz=a.token_expired_at.tzinfo)
+            if a.token_expired_at < now:
+                return web.json_response({
+                    'code': -1,
+                    'message': '认证过期',
+                }, status=400)
             token = bytes(a.token, encoding='utf8')
             request['data'] = decrypt256(token, data.get('data'))
             request['token'] = token
             logger.trace('auth {}  path: {}', app, urlpath)
-            
+
         response = await handler(request)
         return response
-        
+
     async def serve(self):
         '''
         启动服务。

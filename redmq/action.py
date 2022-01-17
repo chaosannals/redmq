@@ -45,7 +45,7 @@ class RedMQAction:
             return json_response({
                 'code': -1,
                 'message': '验证信息不可空'
-            })
+            }, status=400)
 
         a = await Account.get_or_none(key=app)
 
@@ -54,16 +54,24 @@ class RedMQAction:
             return json_response({
                 'code': -1,
                 'message': '无效账号'
-            })
+            }, status=400)
 
         secret = bytes(a.secret, encoding='utf8')
         nkey = decrypt256(secret, ekey)
-        if nkey != key:
-            logger.warning('账号：{} 验证无效 {} {} {} {}', app, secret, key, nkey, ekey)
+        if nkey['key'] != key:
+            logger.warning('账号：{} 验证无效 {}', app, key)
             return json_response({
                 'code': -1,
-                'message': '密码错误'
-            })
+                'message': '密码错误',
+            }, status=400)
+        nkey_expired_at = datetime.strptime(nkey['expired_at'], '%Y-%m-%d %H:%M:%S')
+
+        if nkey_expired_at < datetime.now():
+            logger.warning('账号：{} 验证过期 {} 在 {}', app, key, nkey_expired_at)
+            return json_response({
+                'code': -1,
+                'message': '密码过期',
+            }, status=400)
         
         a.token = random_text()
         a.token_expired_at = datetime.now() + timedelta(hours=2)
@@ -112,7 +120,7 @@ class RedMQAction:
             return json_response({
                 'code': -1,
                 'message': '请指定队列。'
-            })
+            }, status=400)
 
         result = await self.queue.push(
             data['queue'],
@@ -150,7 +158,7 @@ class RedMQAction:
             return json_response({
                 'code': -1,
                 'message': '请指定队列。'
-            })
+            }, status=400)
 
         info = await self.queue.peek(data['queue'])
 
